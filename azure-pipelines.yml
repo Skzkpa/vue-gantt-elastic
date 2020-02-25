@@ -1,0 +1,104 @@
+
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  resourceGroupName: GanttTask
+  storageAccountName: mytaskstorage
+  location: westeurope
+  containerName: mywebcontainer
+  subscription: 861b334c-aa11-4193-b05b-d89173220565
+  subscriptionname: Azure dla studentów (861b334c-aa11-4193-b05b-d89173220565)
+
+stages:
+- stage: 'Gantt_Build'
+  displayName: 'This stage is for building gantt app'
+  jobs:
+  - job: 'InstallandBuild'
+    displayName: Install prerequisites & build app'
+    
+    steps:
+    - task: Bash@3
+      displayName: 'Install prerequisites'
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Y" | sudo apt-get update
+          echo "Y" | sudo apt install npm
+          echo "Y" | sudo apt install python3-pip
+          echo "Y" | sudo apt-get install python3-setuptools
+          echo "Y" | pip3 install -r ./src/data/requirements 
+          cd src/data
+          echo "Y" | python excel.py
+    
+    - task: ArchiveFiles@2
+      displayName: 'Archive installed files'
+      inputs:
+        rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact'
+
+- stage: 'Deploy_Grantt'
+  displayName: 'Deploy grantt to static web site'
+  jobs:
+  - job: 'StorageandStaticWebSite'
+    steps:
+    - task: AzurePowerShell@4
+      inputs:
+        azureSubscription: $(subscriptionname)
+        ScriptType: 'InlineScript'
+        Inline: |
+          Select-AzSubscription -Subscription $(subscription)
+          $check_rg = Get-AzResourceGroup -Name $(resourceGroupName) -Location $(location) -ErrorAction SilentlyContinue
+          if($null -eq $check_rg)
+          {
+            New-AzResourceGroup -Name $(resourceGroupName) -Location $(location)
+          }
+          $check_storage = Get-AzStorageAccount -Name $(storageAccountName) -ResourceGroupName $(resourceGroupName) -ErrorAction SilentlyContinue
+          if($null -eq $check_storage)
+          {
+            New-AzStorageAccount -ResourceGroupName $(resourceGroupName) -Name $(storageAccountName) -Location $(location) -SkuName Standard_LRS -AccessTier Hot
+          }
+          Set-AzCurrentStorageAccount -ResourceGroupName $(resourceGroupName) -Name $(storageAccountName)
+          #open firewall for storage
+          Update-AzStorageAccountNetworkRuleSet -ResourceGroupName $(resourceGroupName) -Name $(storageAccountName) -DefaultAction Allow -Bypass AzureServices,Metrics,Logging
+          Enable-AzStorageStaticWebsite -Context $storageAccount.Context -IndexDocument index.html -ErrorDocument404Path index.html 
+
+        azurePowerShellVersion: 'LatestVersion'
+
+    - task: AzureCLI@2
+      displayName: 'Delete remaining files from blob container recusevly'
+      inputs:
+        azureSubscription: $(subscriptionname)
+        scriptType: ps
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az storage blob delete-batch --account-name $(storageAccountName) --source $web
+
+    - task: AzureFileCopy@3
+      displayName: 'Coping files to $web'
+      inputs:
+        sourcePath: $(System.DefaultWorkingDirectory)
+        azureSubscription: $(subscriptionname)
+        destination: 'AzureBlob'
+        storage: $(storageAccountName)
+        ContainerName: '$web'
+
+    # - task: AzurePowerShell@4
+    #   inputs:
+    #     azureSubscription: $(subscriptionname)
+    #     sriptType: 'InlineScript'
+    #     Inline: |
+    #       cd $(System.DefaultWorkingDircetory)
+    #       $ip = "193.46.212.2"
+    #       Update-AzStorageAccountRuleSet -ResourceGroupName $(resourceGroupName) -Name $(storageAccountName) -DefaultAction Deny -Bypass AzureServices,Metrics,Logging
+    #       Remove-AzStorageAccountNetworkRule -ResourceGroupName $(resourceGroupName) -Name $(storageAccountName) -ErrorAction SilentlyContinue -IPAddressOrRange $ip -ErrorVariable no_rule
+    #       if($null -ne $no_rule)
+    #       {
+    #       Add-AzStorageAccountNetworkRule -ResourceGroupName $(resourceGroupName) -Name $(storageAccountName) -IPAddressOrRange $ip
+    #       }
+    #     azurePowerShellVersion: 'LatestVersion'
