@@ -29,8 +29,8 @@ stages:
           echo "Y" | sudo apt-get update
           echo "Y" | sudo apt install npm
           echo "Y" | sudo apt install python3-pip
-          echo "Y" | sudo apt-get install python3-setuptools
-    
+          echo "Y" | sudo apt-get install python3-setuptool
+            
     - task: ArchiveFiles@2
       displayName: 'Archive installed files'
       inputs:
