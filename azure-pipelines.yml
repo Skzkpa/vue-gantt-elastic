@@ -26,8 +26,9 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
-          echo "Y" | apt-get update
-          echo "Y" | apt install npm
+          echo "Y" | yum update
+          echo "__DONE__"
+          echo "Y" | yum install npm
           echo "Y" | npm run serve
           echo "Y" | npm run build
     
