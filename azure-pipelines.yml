@@ -28,9 +28,9 @@ stages:
         script: |
           echo "Y" | sudo apt-get update
           echo "Y" | sudo apt install npm
-          echo "Y" | sudo apt install python3-pip
-          echo "Y" | sudo apt-get install python3-setuptool
-            
+          echo "Y" | sudo npm run serve
+          echo "Y" | sudo npm run build
+    
     - task: ArchiveFiles@2
       displayName: 'Archive installed files'
       inputs:
