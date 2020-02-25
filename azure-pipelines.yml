@@ -26,10 +26,10 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
-          echo "Y" | su apt-get update
-          echo "Y" | su apt install npm
-          echo "Y" | su npm run serve
-          echo "Y" | su npm run build
+          echo "Y" | apt-get update
+          echo "Y" | apt install npm
+          echo "Y" | npm run serve
+          echo "Y" | npm run build
     
     - task: ArchiveFiles@2
       displayName: 'Archive installed files'
